@@ -1,0 +1,13 @@
+[Unit]
+Description=Sekai-kabuka2mqtt Service
+After=mosquitto.service
+
+[Service]
+ExecStart=/usr/local/bin/sekai-kabuka2mqtt
+Restart=always
+User=nobody
+Group=nogroup
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Market Streamer Service
+After=sekai-kabuka2mqtt.service polo2mqtt.service
+
+[Service]
+ExecStart=/usr/local/bin/market-streamer
+Restart=always
+User=nobody
+Group=nogroup
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

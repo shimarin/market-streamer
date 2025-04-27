@@ -1,0 +1,13 @@
+[Unit]
+Description=Polo2MQTT Service
+After=mosquitto.service
+
+[Service]
+ExecStart=/usr/local/bin/polo2mqtt
+Restart=always
+User=nobody
+Group=nogroup
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
