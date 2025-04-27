@@ -366,12 +366,12 @@ def draw_frame(surface):
     x += CELL_WIDTH + CELL_WIDTH + GAP_X
     draw_png(ctx, charts.get("gold_sunday"), x, y)
     y += CELL_HEIGHT
-    draw_png(ctx, charts.get("wti"), x, y)
+    draw_png(ctx, charts.get("lng"), x, y)
     y += CELL_HEIGHT
     draw_png(ctx, charts.get("palladium"), x, y)
     y = GAP_Y
     x += CELL_WIDTH
-    draw_png(ctx, charts.get("lng"), x, y)
+    draw_png(ctx, charts.get("wti"), x, y)
     y += CELL_HEIGHT
     draw_png(ctx, charts.get("copper"), x, y)
 
