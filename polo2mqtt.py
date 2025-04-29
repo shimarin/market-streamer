@@ -6,6 +6,7 @@ import time,threading,logging,json,argparse
 
 channel = ["candles_minute_10"]
 symbols = ["XMR_USDT", "BTC_USDT"]
+mqtt = None
 
 def ping_thread(ws):
     try:
@@ -31,7 +32,7 @@ def on_message(ws, message):
     logging.debug(f"Received message: {message}")
     # MQTTにメッセージを送信
     if "data" in message:
-        mqtt.publish("poloniex", message)
+        mqtt.publish("poloniex/public", message)
 
 def on_error(ws, error):
     logging.error(f"WebSocket error: {error}")

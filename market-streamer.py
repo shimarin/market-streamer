@@ -85,7 +85,7 @@ def run_ffmpeg(rtmp_url):
     stderr=subprocess.DEVNULL
     )
 
-def on_poloniex_message(message):
+def on_poloniex_public_message(message):
     global xmrusdt_price_history
     # convert the message to JSON
     # copy xmrusdt_price_history to a new list
@@ -123,14 +123,26 @@ def on_poloniex_message(message):
         logging.error(f"Error processing message: {e}")
         return
 
+def on_poloniex_account_message(message):
+    pass
+
+def on_poloniex_positions_message(message):
+    pass
+
 def on_connect(client, userdata, flags, rc, properties):
     logging.info(f"Connected to MQTT broker with result code {rc}")
     rst = client.subscribe("sekai-kabuka/+", qos=1)
     if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
         topics[rst[1]] = "sekai-kabuka"
-    rst = client.subscribe("poloniex", qos=1)
+    rst = client.subscribe("poloniex/public", qos=1)
     if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
-        topics[rst[1]] = "poloniex"
+        topics[rst[1]] = "poloniex/public"
+    rst = client.subscribe("poloniex/account", qos=1)
+    if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
+        topics[rst[1]] = "poloniex/account"
+    rst = client.subscribe("poloniex/positions", qos=1)
+    if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
+        topics[rst[1]] = "poloniex/positions"
 
 def on_subscribe(client, userdata, mid, granted_qos, properties):
     topic_subscribed = topics[mid]
@@ -144,8 +156,12 @@ def on_message(client, userdata, message):
     if topic.startswith("sekai-kabuka/"):
         name = topic.split("/")[-1]
         charts[name] = message.payload
-    elif topic == "poloniex":
-        on_poloniex_message(message)
+    elif topic == "poloniex/public":
+        on_poloniex_public_message(message)
+    elif topic == "poloniex/account":
+        on_poloniex_account_message(message)
+    elif topic == "poloniex/positions":
+        on_poloniex_positions_message(message)
 
 def draw_png(ctx, png, x, y):
     if png is None: return
