@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# # -*- coding: utf-8 -*-
 import websocket
 import paho.mqtt.client as mqtt_client
 import os,time,threading,logging,json,argparse,hashlib,hmac,base64
