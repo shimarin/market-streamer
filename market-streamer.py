@@ -14,6 +14,10 @@ monero_svg = """
 """
 monero_surface = None
 
+# poloniex account balance
+eq = None
+upl = None
+
 UPDATE_FPS = 5
 MOVIE_FPS = 15
 #BGCOLOR_R, BGCOLOR_G, BGCOLOR_B = (0.0, 0.694, 0.251)
@@ -124,7 +128,12 @@ def on_poloniex_public_message(message):
         return
 
 def on_poloniex_account_message(message):
-    pass
+    global eq, upl
+    data = json.loads(message.payload)
+    eq_str = data.get("eq")
+    eq = float(eq_str) if eq_str is not None else None
+    upl_str = data.get("upl")
+    upl = float(upl_str) if upl_str is not None else None
 
 def on_poloniex_positions_message(message):
     pass
@@ -344,8 +353,51 @@ def draw_xmrusdt(ctx, x, y):
     ctx.rectangle(x, y, CELL_WIDTH, CELL_HEIGHT)
     ctx.stroke()
 
+def draw_balance(ctx, x, y):
+    global eq, upl
+    ctx.set_source_rgb(1, 1, 1)
+    ctx.rectangle(x, y, CELL_WIDTH, 114)
+    ctx.fill()
+
+    if eq is not None:
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.set_font_size(16)
+        ctx.move_to(x + 3, y + 17)
+        ctx.show_text("残高")
+        ctx.set_font_size(22)
+        eq_str = f"{eq:.2f}ドル"
+        eq_extents = ctx.text_extents(eq_str)
+        eq_width = eq_extents[2]
+        ctx.move_to(x + (CELL_WIDTH - eq_width) - 4, y + 42)
+        ctx.show_text(eq_str)
+    if upl is not None:
+        ctx.set_font_size(16)
+        ctx.move_to(x + 3, y + 68)
+        ctx.show_text("うち含み損益")
+        ctx.set_font_size(28)
+        sign = " "
+        color = (0, 0, 0)
+        if upl > 0:
+            sign = "+"
+            color = (0, 0.7, 0)
+        elif upl < 0:
+            sign = "-"
+            color = (0.7, 0, 0)
+        ctx.set_source_rgb(*color)
+        upl_str = f"{sign}{upl:.2f}ドル"
+        upl_extents = ctx.text_extents(upl_str)
+        upl_width = upl_extents[2]
+        ctx.move_to(x + (CELL_WIDTH - upl_width) - 4, y + 100)
+        ctx.show_text(upl_str)
+
+    # draw the gray frame
+    ctx.set_source_rgb(0.5, 0.5, 0.5)
+    ctx.rectangle(x, y, CELL_WIDTH, 114)
+    ctx.stroke()
+
+
 def draw_frame(surface):
-    global frame_count
+    global frame_count, charts, eq, upl
     ctx = cairo.Context(surface)
 
     x, y = GAP_X, GAP_Y
@@ -363,6 +415,12 @@ def draw_frame(surface):
     x += CELL_WIDTH
     draw_png(ctx, charts.get("yield"), x, y)
 
+    x -= CELL_WIDTH
+    y += CELL_HEIGHT + GAP_Y
+    draw_png(ctx, charts.get("date"), x, y)
+    x += CELL_WIDTH
+    draw_balance(ctx, x, y)
+
     x += CELL_WIDTH + GAP_X
     y = GAP_Y
     draw_png(ctx, charts.get("n225_cfd"), x, y)
@@ -374,12 +432,8 @@ def draw_frame(surface):
     x += CELL_WIDTH
     draw_xmrusdt(ctx, x, y)
 
-    x -= CELL_WIDTH
-    y += CELL_HEIGHT + GAP_Y
-    draw_png(ctx, charts.get("date"), x, y)
-
     y = GAP_Y
-    x += CELL_WIDTH + CELL_WIDTH + GAP_X
+    x += CELL_WIDTH + GAP_X
     draw_png(ctx, charts.get("gold_sunday"), x, y)
     y += CELL_HEIGHT
     draw_png(ctx, charts.get("lng"), x, y)
@@ -442,7 +496,7 @@ def main(mqtt_host, rtmp_url):
 
 if __name__ == "__main__":
     # Argument parser
-    DEFAULT_RTMP_SERVER = "rtmp://obs/live/sekai-kabuka"
+    DEFAULT_RTMP_SERVER = "rtmp://localhost/live/sekai-kabuka"
     import argparse
     parser = argparse.ArgumentParser(description="Market streamer")
     parser.add_argument("--mqtt", type=str, default="localhost", help="MQTT broker address")
