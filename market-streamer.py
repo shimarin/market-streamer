@@ -20,7 +20,6 @@ upl = None
 
 UPDATE_FPS = 5
 MOVIE_FPS = 15
-#BGCOLOR_R, BGCOLOR_G, BGCOLOR_B = (0.0, 0.694, 0.251)
 BGCOLOR_R, BGCOLOR_G, BGCOLOR_B = (0.0, 1.0, 0.0)
 frame_count = 0
 
@@ -72,14 +71,14 @@ def run_ffmpeg(rtmp_url):
     return subprocess.Popen([
         'ffmpeg',
         '-y',
-        '-f', 'image2pipe',
-        '-vcodec', 'png',
+        '-f', 'rawvideo',
+        '-pix_fmt', 'bgra',
+        '-s', f"{WIDTH}x{HEIGHT}",
         '-r', str(UPDATE_FPS),
         '-i', '-',
         '-vf', 'fps=' + str(MOVIE_FPS) + ',format=yuv420p',
         '-c:v', 'libx264',
         '-preset', 'ultrafast',
-        #'-g', str(MOVIE_FPS),
         '-tune', 'zerolatency',
         '-f', 'flv',
         rtmp_url,
@@ -471,12 +470,8 @@ def main(mqtt_host, rtmp_url):
         while True:
             start_time = time.time()
             draw_frame(surface)
-            # Wait for messages
-            buffer = io.BytesIO()
-            surface.write_to_png(buffer)
-            buffer.seek(0)
 
-            ffmpeg.stdin.write(buffer.getvalue())
+            ffmpeg.stdin.write(surface.get_data())
             ffmpeg.stdin.flush()
             frame_count += 1
             current_time = time.time()
@@ -485,7 +480,6 @@ def main(mqtt_host, rtmp_url):
                 time.sleep(1.0 / UPDATE_FPS - elapsed_time)
             else:
                 logging.warning("Frame processing took too long, skipping frame")
-            #time.sleep(1.0 / UPDATE_FPS)
     except KeyboardInterrupt:
         logging.info("Exiting...")
     finally:
