@@ -120,12 +120,14 @@ def load_pages(ws, url1, url2):
     logging.info("New tab loaded successfully.")
     return session_id, new_session_id
 
-def take_screenshot(ws, session_id):
-    screenshot_result = send_command(ws, "Page.captureScreenshot", {
+def take_screenshot(ws, session_id, clip=None):
+    params = {
         "format": "png",
-        "quality": 100,
         "fromSurface": True
-    }, session_id=session_id)
+    }
+    if clip:
+        params["clip"] = clip
+    screenshot_result = send_command(ws, "Page.captureScreenshot", params, session_id=session_id)
     return base64.b64decode(screenshot_result["result"]["data"])
 
 def process_screenshot(screenshot, coords, diff = None):
@@ -146,7 +148,7 @@ def process_screenshot(screenshot, coords, diff = None):
 def process_screenshot_dow30(screenshot, diff = None):
     coords = {}
 
-    origin_x, origin_y = 180, 185
+    origin_x, origin_y = 0, 0
     width, height = 187, 154
     x_gap = 8
     x_gap2 = 9
@@ -197,7 +199,7 @@ def process_screenshot_dow30(screenshot, diff = None):
 def process_screenshot_bitcoin(screenshot, diff = None):
     coords = {}
 
-    origin_x, origin_y = 185, 265
+    origin_x, origin_y = 0, 0
     width, height = 187, 154
     x_gap = 8
     x_gap2 = 9
@@ -247,7 +249,8 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
     try:
         while True:
             start_time = time.time()
-            screenshot = cv2.imdecode(np.frombuffer(take_screenshot(ws, dow30), np.uint8), cv2.IMREAD_UNCHANGED)
+            screenshot_png = take_screenshot(ws, dow30, clip={"x": 180, "y": 185, "width": 1530, "height": 960, "scale":1})
+            screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_dow30, screenshot) if previous_screenshot_dow30 is not None else None
             if diff is not None and np.sum(diff) == 0: continue
             #else
@@ -255,7 +258,8 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
             cells_dow30 = process_screenshot_dow30(screenshot, diff)
             previous_screenshot_dow30 = screenshot
 
-            screenshot = cv2.imdecode(np.frombuffer(take_screenshot(ws, bitcoin), np.uint8), cv2.IMREAD_UNCHANGED)
+            screenshot_png = take_screenshot(ws, bitcoin, clip={"x": 185, "y": 265, "width": 800, "height": 600, "scale":1})
+            screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_bitcoin, screenshot) if previous_screenshot_bitcoin is not None else None
             if diff is not None and np.sum(diff) == 0: continue
             #else
