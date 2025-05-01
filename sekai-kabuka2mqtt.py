@@ -22,7 +22,13 @@ def start_chrome(port=9222, width=1920, height=1440):
         f"--remote-debugging-port={port}",
         f"--remote-allow-origins=*",
         "--headless=new",
-        "--no-sandbox"
+        "--no-sandbox",
+        "--process-per-site",
+        "--no-zygote",
+        "--disable-setuid-sandbox",
+        "--disable-features=TranslateUI,Translate",
+        "--hide-scrollbars",
+        "--enable-unsafe-swiftshader"
     ])
     time.sleep(2)  # Chromeの起動を待つ
     return process
@@ -249,7 +255,7 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
     try:
         while True:
             start_time = time.time()
-            screenshot_png = take_screenshot(ws, dow30, clip={"x": 180, "y": 185, "width": 1530, "height": 960, "scale":1})
+            screenshot_png = take_screenshot(ws, dow30, clip={"x": 188, "y": 185, "width": 1530, "height": 960, "scale":1})
             screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_dow30, screenshot) if previous_screenshot_dow30 is not None else None
             if diff is not None and np.sum(diff) == 0: continue
@@ -258,7 +264,7 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
             cells_dow30 = process_screenshot_dow30(screenshot, diff)
             previous_screenshot_dow30 = screenshot
 
-            screenshot_png = take_screenshot(ws, bitcoin, clip={"x": 185, "y": 265, "width": 800, "height": 600, "scale":1})
+            screenshot_png = take_screenshot(ws, bitcoin, clip={"x": 193, "y": 265, "width": 800, "height": 600, "scale":1})
             screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_bitcoin, screenshot) if previous_screenshot_bitcoin is not None else None
             if diff is not None and np.sum(diff) == 0: continue
