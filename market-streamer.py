@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import subprocess,logging,time,io,json
+
 import cairo,cairosvg
+from gi import require_version
+require_version("Pango", "1.0")
+require_version("PangoCairo", "1.0")
+from gi.repository import Pango, PangoCairo
+
 import paho.mqtt.client as mqtt_client
 import requests
 
@@ -358,11 +364,21 @@ def draw_balance(ctx, x, y):
     ctx.rectangle(x, y, CELL_WIDTH, 114)
     ctx.fill()
 
+    # PangoCairoコンテキストの作成
+    pango_ctx = PangoCairo.create_context(ctx)
+
     if eq is not None:
+        pango_layout = Pango.Layout.new(pango_ctx)
+        # フォントの設定（Noto SansとNoto Emojiを指定）
+        font_desc = Pango.FontDescription.new()
+        font_desc.set_family("Noto Sans")
+        font_desc.set_size(12 * Pango.SCALE)  # フォントサイズ24ポイント
+        pango_layout.set_font_description(font_desc)
+        pango_layout.set_text("₿先物口座残高", -1)
+
         ctx.set_source_rgb(0, 0, 0)
-        ctx.set_font_size(16)
-        ctx.move_to(x + 3, y + 17)
-        ctx.show_text("残高")
+        ctx.move_to(x + 3, y + 1)
+        PangoCairo.show_layout(ctx, pango_layout)
         ctx.set_font_size(22)
         eq_str = f"{eq:.2f}ドル"
         eq_extents = ctx.text_extents(eq_str)
