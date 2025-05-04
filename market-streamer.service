@@ -1,6 +1,8 @@
 [Unit]
 Description=Market Streamer Service
-After=sekai-kabuka2mqtt.service polo2mqtt.service
+After=mosquitto.service network-online.target
+Requires=mosquitto.service
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/market-streamer

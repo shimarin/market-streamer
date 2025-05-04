@@ -1,6 +1,8 @@
 [Unit]
 Description=Sekai-kabuka2mqtt Service
-After=mosquitto.service
+After=mosquitto.service network-online.target
+Requires=mosquitto.service
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/sekai-kabuka2mqtt

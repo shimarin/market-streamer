@@ -1,11 +1,11 @@
 [Unit]
-Description=Polo2MQTT Service
+Description=P2pool2MQTT Service
 After=mosquitto.service network-online.target
 Requires=mosquitto.service
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/polo2mqtt
+ExecStart=/usr/local/bin/p2pool2mqtt ALIAS
 Restart=always
 User=nobody
 Group=nogroup

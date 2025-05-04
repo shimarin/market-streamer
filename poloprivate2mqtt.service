@@ -1,6 +1,8 @@
 [Unit]
 Description=PoloPrivate2MQTT Service
-After=mosquitto.service
+After=mosquitto.service network-online.target
+Requires=mosquitto.service
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/poloprivate2mqtt

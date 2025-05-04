@@ -14,6 +14,7 @@ import requests
 charts = {}
 topics = {}
 xmrusdt_price_history = []
+p2pool_data = None
 
 monero_svg = """
 <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3756.09 3756.49"><title>monero</title><path d="M4128,2249.81C4128,3287,3287.26,4127.86,2250,4127.86S372,3287,372,2249.81,1212.76,371.75,2250,371.75,4128,1212.54,4128,2249.81Z" transform="translate(-371.96 -371.75)" style="fill:#fff"/><path id="_149931032" data-name=" 149931032" d="M2250,371.75c-1036.89,0-1879.12,842.06-1877.8,1878,0.26,207.26,33.31,406.63,95.34,593.12h561.88V1263L2250,2483.57,3470.52,1263v1579.9h562c62.12-186.48,95-385.85,95.37-593.12C4129.66,1212.76,3287,372,2250,372Z" transform="translate(-371.96 -371.75)" style="fill:#f26822"/><path id="_149931160" data-name=" 149931160" d="M1969.3,2764.17l-532.67-532.7v994.14H1029.38l-384.29.07c329.63,540.8,925.35,902.56,1604.91,902.56S3525.31,3766.4,3855,3225.6H3063.25V2231.47l-532.7,532.7-280.61,280.61-280.62-280.61h0Z" transform="translate(-371.96 -371.75)" style="fill:#4d4d4d"/></svg>
@@ -143,11 +144,29 @@ def on_poloniex_account_message(message):
 def on_poloniex_positions_message(message):
     pass
 
+def on_p2pool_message(message):
+    global p2pool_data
+    data = json.loads(message.payload)
+    shares = []
+    for n in data["shares"]:
+        shares.append(int(n, 16))
+    uncles = []
+    for n in data["uncles"]:
+        uncles.append(int(n, 16))
+    payouts = []
+    for n in data["payouts"]:
+        payouts.append(int(n, 16))
+    p2pool_data = {
+        "shares": shares,
+        "uncles": uncles,
+        "payouts": payouts
+    }
+
 def on_connect(client, userdata, flags, rc, properties):
     logging.info(f"Connected to MQTT broker with result code {rc}")
     rst = client.subscribe("sekai-kabuka/+", qos=1)
     if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
-        topics[rst[1]] = "sekai-kabuka"
+        topics[rst[1]] = "sekai-kabuka/+"
     rst = client.subscribe("poloniex/public", qos=1)
     if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
         topics[rst[1]] = "poloniex/public"
@@ -157,12 +176,17 @@ def on_connect(client, userdata, flags, rc, properties):
     rst = client.subscribe("poloniex/positions", qos=1)
     if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
         topics[rst[1]] = "poloniex/positions"
+    rst = client.subscribe("p2pool/+", qos=1)
+    if rst[0] == mqtt_client.MQTT_ERR_SUCCESS:
+        topics[rst[1]] = "p2pool/+"
 
 def on_subscribe(client, userdata, mid, granted_qos, properties):
     topic_subscribed = topics[mid]
     logging.info(f"Subscribed to topic with mid: {topic_subscribed}, granted_qos: {granted_qos}")
-    if topic_subscribed == "sekai-kabuka":
+    if topic_subscribed == "sekai-kabuka/+":
         client.publish("sekai-kabuka", "REQUEST ALL")
+    elif topic_subscribed == "p2pool/+":
+        client.publish("p2pool", "REQUEST ALL")
 
 def on_message(client, userdata, message):
     topic = message.topic
@@ -176,6 +200,8 @@ def on_message(client, userdata, message):
         on_poloniex_account_message(message)
     elif topic == "poloniex/positions":
         on_poloniex_positions_message(message)
+    elif topic.startswith("p2pool/"):
+        on_p2pool_message(message)
 
 def draw_png(ctx, png, x, y):
     if png is None: return
@@ -410,6 +436,59 @@ def draw_balance(ctx, x, y):
     ctx.rectangle(x, y, CELL_WIDTH, 114)
     ctx.stroke()
 
+def draw_p2pool_chart(ctx, x, y, height, data, color=(0, 0, 1)):
+    min_data = 0
+    max_data = max(data)
+    # 青色を設定
+
+    ctx.set_source_rgb(*color)
+    ctx.set_line_width(1)
+
+    def fit_to_chart(data):
+        """データをチャートの高さにスケールする関数"""
+        if max_data == 0: return height
+        return height - ((data - min_data) / (max_data - min_data) * height)
+
+    # 価格をチャート高さに正規化して折れ線を描画
+    for i in range(len(data)):
+        # 現在のデータポイント
+        current_data = data[i]
+        plot_y = fit_to_chart(current_data) + y  # チャートのY座標を計算
+        # 横軸：1データポイント=1ピクセル
+        plot_x = x + i
+
+        if i == 0:
+            # 最初の点：線を開始
+            ctx.move_to(plot_x, plot_y)
+        else:
+            # 以降の点：線を引く
+            ctx.line_to(plot_x, plot_y)
+
+    # 線を描画
+    ctx.stroke()
+
+def draw_p2pool(ctx, x, y):
+    global p2pool_data
+    if p2pool_data is None: return
+    #else
+    width, height = 122, 50
+    ctx.set_source_rgb(1, 1, 1)
+    ctx.rectangle(x, y, width, height)
+    ctx.fill()
+
+    chart_height = (height) / 4
+
+    cy = y + 3
+    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["shares"], (0, 0, 1))
+    cy += chart_height + 3
+    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["uncles"], (0, 0.5, 0.5))
+    cy += chart_height + 3
+    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["payouts"], (1, 0, 0))
+
+    # draw the gray frame
+    ctx.set_source_rgb(0.5, 0.5, 0.5)
+    ctx.rectangle(x, y, width, height)
+    ctx.stroke()
 
 def draw_frame(surface):
     global frame_count, charts, eq, upl
@@ -446,9 +525,12 @@ def draw_frame(surface):
     draw_png(ctx, charts.get("btcusd"), x, y)
     x += CELL_WIDTH
     draw_xmrusdt(ctx, x, y)
+    x -= CELL_WIDTH
+    y += CELL_HEIGHT + GAP_Y
+    draw_p2pool(ctx, x, y)
 
     y = GAP_Y
-    x += CELL_WIDTH + GAP_X
+    x += CELL_WIDTH + CELL_WIDTH + GAP_X
     draw_png(ctx, charts.get("gold_sunday"), x, y)
     y += CELL_HEIGHT
     draw_png(ctx, charts.get("lng"), x, y)
