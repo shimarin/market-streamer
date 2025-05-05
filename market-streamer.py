@@ -14,6 +14,7 @@ import requests
 charts = {}
 topics = {}
 xmrusdt_price_history = []
+xmr_balance = None
 p2pool_data = None
 
 monero_svg = """
@@ -72,6 +73,42 @@ def fetch_xmrusdt_price_history():
     except (ValueError, KeyError, IndexError) as e:
         print(f"Data parsing error: {e}")
         return []
+
+def fetch_xmr_balance():
+    """ウォレットを同期し、残高を確認"""
+    def send_xmr_wallet_rpc_request(method, params=None):
+        """RPCリクエストを送信し、結果を返す"""
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 0,
+            "method": method,
+            "params": params or {}
+        }
+        response = requests.post("http://localhost:18082/json_rpc", headers=headers, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        if "error" in result:
+            raise Exception(f"RPC error: {result['error']['message']}")
+        return result.get("result")
+
+    try:
+        # ウォレットを同期
+        logging.debug("Starting wallet refresh")
+        refresh_result = send_xmr_wallet_rpc_request("refresh")
+        logging.debug(f"Refresh completed: {refresh_result}")
+
+        # 残高を取得
+        balance_result = send_xmr_wallet_rpc_request("get_balance", {
+            "account_index": 0,
+            "address_indices": [0]
+        })
+        xmr_balance = balance_result["unlocked_balance"] / 1e12  # ピコモネロをXMRに変換
+        logging.debug(f"XMR Balance: {xmr_balance}")
+        return xmr_balance
+    except Exception as e:
+        logging.error(f"Error in sync_and_check_balance: {e}")
+        return None
 
 def run_ffmpeg(rtmp_url):
     # Run ffmpeg to stream the video
@@ -468,22 +505,32 @@ def draw_p2pool_chart(ctx, x, y, height, data, color=(0, 0, 1)):
     ctx.stroke()
 
 def draw_p2pool(ctx, x, y):
-    global p2pool_data
-    if p2pool_data is None: return
-    #else
-    width, height = 122, 50
+    global p2pool_data, xmr_balance
+    width, height = 122, 64
+
     ctx.set_source_rgb(1, 1, 1)
     ctx.rectangle(x, y, width, height)
     ctx.fill()
 
-    chart_height = (height) / 4
+    if p2pool_data is not None:
+        chart_height = (height) / 5
 
-    cy = y + 3
-    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["shares"], (0, 0, 1))
-    cy += chart_height + 3
-    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["uncles"], (0, 0.5, 0.5))
-    cy += chart_height + 3
-    draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["payouts"], (1, 0, 0))
+        cy = y + 3
+        draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["shares"], (0, 0, 1))
+        cy += chart_height + 3
+        draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["uncles"], (0, 0.5, 0.5))
+        cy += chart_height + 3
+        draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["payouts"], (1, 0, 0))
+
+    # draw the XMR balance
+    if xmr_balance is not None:
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.set_font_size(12)
+        xmr_balance_str = f"{xmr_balance:.4f} XMR"
+        xmr_balance_extents = ctx.text_extents(xmr_balance_str)
+        xmr_balance_width = xmr_balance_extents[2]
+        ctx.move_to(x + (width - xmr_balance_width) - 4, y + height - 3)
+        ctx.show_text(xmr_balance_str)
 
     # draw the gray frame
     ctx.set_source_rgb(0.5, 0.5, 0.5)
@@ -543,7 +590,7 @@ def draw_frame(surface):
     draw_png(ctx, charts.get("copper"), x, y)
 
 def main(mqtt_host, rtmp_url):
-    global frame_count, xmrusdt_price_history
+    global frame_count, xmrusdt_price_history, xmr_balance
     xmrusdt_price_history = fetch_xmrusdt_price_history()
 
     # MQTTクライアント設定
@@ -564,14 +611,23 @@ def main(mqtt_host, rtmp_url):
     ctx.fill()
     del ctx
 
+    last_xmr_balance_check = 0
+
     try:
         while True:
             start_time = time.time()
+
+            # Check if we need to fetch new XMR price history
+            if time.time() - last_xmr_balance_check > 60 * 10:
+                xmr_balance = fetch_xmr_balance()
+                last_xmr_balance_check = start_time
+
             draw_frame(surface)
 
             ffmpeg.stdin.write(surface.get_data())
             ffmpeg.stdin.flush()
             frame_count += 1
+
             current_time = time.time()
             elapsed_time = current_time - start_time
             if elapsed_time < 1.0 / UPDATE_FPS:
