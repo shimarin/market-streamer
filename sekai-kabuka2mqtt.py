@@ -306,19 +306,13 @@ def main(mqtt_host, chrome_port, chrome_user_dir, save_images=False, fps=FPS, de
             screenshot_png = take_screenshot(ws, dow30, clip={"x": 188, "y": 185, "width": 1530, "height": 960, "scale":1})
             screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_dow30, screenshot) if previous_screenshot_dow30 is not None else None
-            if diff is not None and np.sum(diff) == 0: continue
-            #else
-            # Process the screenshot
-            cells_dow30 = process_screenshot_dow30(screenshot, diff)
+            cells_dow30 = process_screenshot_dow30(screenshot, diff) if diff is not None else {}
             previous_screenshot_dow30 = screenshot
 
             screenshot_png = take_screenshot(ws, bitcoin, clip={"x": 193, "y": 265, "width": 800, "height": 600, "scale":1})
             screenshot = cv2.imdecode(np.frombuffer(screenshot_png, np.uint8), cv2.IMREAD_UNCHANGED)
             diff = cv2.absdiff(previous_screenshot_bitcoin, screenshot) if previous_screenshot_bitcoin is not None else None
-            if diff is not None and np.sum(diff) == 0: continue
-            #else
-            # Process the screenshot
-            cells_bitcoin = process_screenshot_bitcoin(screenshot, diff)
+            cells_bitcoin = process_screenshot_bitcoin(screenshot, diff) if diff is not None else {}
             previous_screenshot_bitcoin = screenshot
 
             # merge the two dictionaries
