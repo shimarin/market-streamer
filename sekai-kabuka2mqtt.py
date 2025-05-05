@@ -30,6 +30,7 @@ def start_chrome(port, user_data_dir, width=CHROME_WIDTH, height=CHROME_HEIGHT, 
         f"--remote-allow-origins=*",
         "--no-sandbox",
         "--process-per-site",
+        "--disable-background-timer-throttling",
         "--no-zygote",
         "--disable-setuid-sandbox",
         "--disable-features=TranslateUI,Translate",
@@ -136,26 +137,29 @@ def load_pages(ws, port, url1, url2):
         time.sleep(0.5)
     logging.info("Page loaded successfully.")
 
-    # 新しいタブを作成
-    new_tab = send_command(ws, "Target.createTarget", {"url": "about:blank"})
-    new_target_id = new_tab["result"]["targetId"]
+    # 新しいウィンドウを作成
+    new_window = send_command(ws, "Target.createTarget", {
+        "url": "about:blank",
+        "newWindow": True
+    })
+    new_target_id = new_window["result"]["targetId"]
 
     logging.info(f"New target ID: {new_target_id}")
-    # 新しいタブにアタッチ
+    # 新しいウィンドウにアタッチ
     new_session_id = attach_to_target(ws, new_target_id)
     logging.info(f"New session ID: {new_session_id}")
 
-    # 新しいタブでPage, Networkを有効化
+    # 新しいウィンドウでPage, Networkを有効化
     send_command(ws, "Page.enable", session_id=new_session_id)
     send_command(ws, "Network.enable", session_id=new_session_id)
 
     # 広告ブロック
     block_ad(ws, new_session_id)
 
-    # 新しいタブでURLをナビゲート
+    # 新しいウィンドウでURLをナビゲート
     send_command(ws, "Page.navigate", {"url": url2}, session_id=new_session_id)
 
-    # 新しいタブのページ読み込みを待つ
+    # 新しいウィンドウのページ読み込みを待つ
     logging.info("Waiting for the new tab to load...")
     while True:
         result = send_command(ws, "Page.getNavigationHistory", session_id=new_session_id)
@@ -333,6 +337,10 @@ def main(mqtt_host, chrome_port, chrome_user_dir, save_images=False, fps=FPS, de
                 send_command(ws, "Page.reload", session_id=dow30)
                 send_command(ws, "Page.reload", session_id=bitcoin)
                 last_reload_time = time.time()
+
+            # bring the pages to front to make them active
+            #send_command(ws, "Page.bringToFront", session_id=dow30)
+            #send_command(ws, "Page.bringToFront", session_id=bitcoin)
 
             end_time = time.time()
             elapsed_time = end_time - start_time
