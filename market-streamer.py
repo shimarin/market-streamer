@@ -15,6 +15,7 @@ charts = {}
 topics = {}
 xmrusdt_price_history = []
 xmr_balance = None
+xmr_unlocked_balance = None
 p2pool_data = None
 
 monero_svg = """
@@ -103,9 +104,11 @@ def fetch_xmr_balance():
             "account_index": 0,
             "address_indices": [0]
         })
-        xmr_balance = balance_result["unlocked_balance"] / 1e12  # ピコモネロをXMRに変換
-        logging.debug(f"XMR Balance: {xmr_balance}")
-        return xmr_balance
+        balance = balance_result["balance"] / 1e12  # ピコモネロをXMRに変換
+        unlocked_balance = balance_result["unlocked_balance"] / 1e12  # ピコモネロをXMRに変換
+
+        logging.debug(f"XMR Balance: {balance} total, {unlocked_balance} unlocked")
+        return (balance, unlocked_balance)
     except Exception as e:
         logging.error(f"Error in sync_and_check_balance: {e}")
         return None
@@ -523,10 +526,10 @@ def draw_p2pool(ctx, x, y):
         draw_p2pool_chart(ctx, x + 1, cy, chart_height, p2pool_data["payouts"], (1, 0, 0))
 
     # draw the XMR balance
-    if xmr_balance is not None:
+    if xmr_balance is not None and xmr_unlocked_balance is not None:
         ctx.set_source_rgb(0, 0, 0)
         ctx.set_font_size(12)
-        xmr_balance_str = f"{xmr_balance:.4f} XMR"
+        xmr_balance_str = f"{xmr_unlocked_balance:.4f}{'+' if xmr_balance > xmr_unlocked_balance else ''} XMR"
         xmr_balance_extents = ctx.text_extents(xmr_balance_str)
         xmr_balance_width = xmr_balance_extents[2]
         ctx.move_to(x + (width - xmr_balance_width) - 4, y + height - 3)
@@ -590,7 +593,7 @@ def draw_frame(surface):
     draw_png(ctx, charts.get("copper"), x, y)
 
 def main(mqtt_host, rtmp_url):
-    global frame_count, xmrusdt_price_history, xmr_balance
+    global frame_count, xmrusdt_price_history, xmr_balance, xmr_unlocked_balance
     xmrusdt_price_history = fetch_xmrusdt_price_history()
 
     # MQTTクライアント設定
@@ -618,8 +621,8 @@ def main(mqtt_host, rtmp_url):
             start_time = time.time()
 
             # Check if we need to fetch new XMR price history
-            if time.time() - last_xmr_balance_check > 60 * 10:
-                xmr_balance = fetch_xmr_balance()
+            if start_time - last_xmr_balance_check > 60 * 10:
+                xmr_balance, xmr_unlocked_balance = fetch_xmr_balance()
                 last_xmr_balance_check = start_time
 
             draw_frame(surface)
