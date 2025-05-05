@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import json,base64,subprocess,websocket,time,logging
+import json,base64,subprocess,websocket,time,logging,tempfile
 import urllib.request
 import cv2
 import numpy as np
@@ -12,16 +12,22 @@ command_id = 0
 previous_screenshot_dow30 = None
 previous_screenshot_bitcoin = None
 
+CHROME_WIDTH = 1920
+CHROME_HEIGHT = 1440
+CHROME_PORT = 9222
+
 FPS = 2.0
 
 # ヘルパー関数：Chromeを指定ポートで起動
-def start_chrome(port=9222, width=1920, height=1440):
-    process = subprocess.Popen([
+def start_chrome(port, user_data_dir, width=CHROME_WIDTH, height=CHROME_HEIGHT, headless=True):
+    cmdline = [
         "google-chrome-stable",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--user-data-dir={user_data_dir}",
         f"--window-size={width},{height}",
         f"--remote-debugging-port={port}",
         f"--remote-allow-origins=*",
-        "--headless=new",
         "--no-sandbox",
         "--process-per-site",
         "--no-zygote",
@@ -29,15 +35,29 @@ def start_chrome(port=9222, width=1920, height=1440):
         "--disable-features=TranslateUI,Translate",
         "--hide-scrollbars",
         "--enable-unsafe-swiftshader"
-    ])
-    time.sleep(2)  # Chromeの起動を待つ
+    ]
+    if headless:
+        cmdline.append("--headless")
+    logging.debug(f"Starting Chrome with command: {' '.join(cmdline)}")
+    process = subprocess.Popen(
+        cmdline
+    )
+    #time.sleep(2)  # Chromeの起動を待つ
     return process
 
 # ヘルパー関数：WebSocketデバッグURLを取得
 def get_ws_url(port):
-    with urllib.request.urlopen(f'http://localhost:{port}/json/version') as response:
-        data = json.loads(response.read())
-        return data['webSocketDebuggerUrl']
+    for i in range(10):
+        try:
+            url = f'http://localhost:{port}/json/version'
+            logging.debug(f"Fetching WebSocket URL from {url}")
+            with urllib.request.urlopen(url) as response:
+                data = json.loads(response.read())
+                return data['webSocketDebuggerUrl']
+        except Exception as e:
+            logging.error(f"Error getting WebSocket URL: {e}")
+            time.sleep(1)
+    raise Exception("Failed to get WebSocket URL")
 
 # ヘルパー関数：CDPコマンドを送信
 def send_command(ws, method, params=None, session_id=None):
@@ -73,23 +93,37 @@ def attach_to_target(ws, target_id):
     return result["result"]["sessionId"]
 
 # ヘルパー関数：初期ターゲットを取得
-def get_initial_target(ws):
-    with urllib.request.urlopen('http://localhost:9222/json') as response:
+def get_initial_target(ws, port=CHROME_PORT):
+    with urllib.request.urlopen(f'http://localhost:{port}/json') as response:
         targets = json.loads(response.read())
         for target in targets:
             if target["type"] == "page":
                 return target["id"]
     raise Exception("No page target found")
 
-def load_pages(ws, url1, url2):
+def block_ad(ws, session_id):
+    send_command(ws, "Network.setBlockedURLs", {
+        "urls": [
+            "*.doubleclick.net", "*.adservice.google.com","*.googleadservices.com",
+            "*.google","*.google.com",
+            "xn--jx2a33n.com"
+        ]
+    }, session_id=session_id)
+
+def load_pages(ws, port, url1, url2):
     # 初期ターゲットを取得
-    initial_target_id = get_initial_target(ws)
+    initial_target_id = get_initial_target(ws, port)
     logging.info(f"Initial target ID: {initial_target_id}")
     # 初期ターゲットにアタッチ
     session_id = attach_to_target(ws, initial_target_id)
     logging.info(f"Session ID: {session_id}")
-    # 初期ターゲットでPageを有効化
+    # 初期ターゲットでPage, Networkを有効化
     send_command(ws, "Page.enable", session_id=session_id)
+    send_command(ws, "Network.enable", session_id=session_id)
+
+    # 広告ブロック
+    block_ad(ws, session_id)
+
     # 初期ターゲットでURLをナビゲート
     send_command(ws, "Page.navigate", {"url": url1}, session_id=session_id)
 
@@ -111,8 +145,13 @@ def load_pages(ws, url1, url2):
     new_session_id = attach_to_target(ws, new_target_id)
     logging.info(f"New session ID: {new_session_id}")
 
-    # 新しいタブでPageを有効化
+    # 新しいタブでPage, Networkを有効化
     send_command(ws, "Page.enable", session_id=new_session_id)
+    send_command(ws, "Network.enable", session_id=new_session_id)
+
+    # 広告ブロック
+    block_ad(ws, new_session_id)
+
     # 新しいタブでURLをナビゲート
     send_command(ws, "Page.navigate", {"url": url2}, session_id=new_session_id)
 
@@ -232,18 +271,25 @@ def on_message(client, userdata, message):
         previous_screenshot_dow30 = None
         previous_screenshot_bitcoin = None
 
-def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
+def main(mqtt_host, chrome_port, chrome_user_dir, save_images=False, fps=FPS, debug=False):
     global previous_screenshot_dow30, previous_screenshot_bitcoin
 
     # create a new Chrome browser instance
-    chrome = start_chrome(chrome_port)
-    ws_url = get_ws_url(chrome_port)
+    chrome = start_chrome(chrome_port, chrome_user_dir, width=CHROME_WIDTH, height=CHROME_HEIGHT, headless=not debug)
+    try:
+        ws_url = get_ws_url(chrome_port)
+    except Exception as e:
+        logging.error(f"Error getting WebSocket URL: {e}")
+        chrome.terminate()
+        raise
+
     ws = websocket.WebSocket()
     ws.connect(ws_url)
 
     logging.info("Connected to WebSocket")
+
     # ページを読み込む
-    dow30, bitcoin = load_pages(ws, "https://sekai-kabuka.com/dow30.html", "https://sekai-kabuka.com/bitcoin.html")
+    dow30, bitcoin = load_pages(ws, chrome_port, "https://sekai-kabuka.com/dow30.html", "https://sekai-kabuka.com/bitcoin.html")
     logging.info("Browser opened")
 
     mqtt = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
@@ -251,6 +297,8 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
     mqtt.on_message = on_message
     mqtt.connect(mqtt_host)
     mqtt.loop_start()
+
+    last_reload_time = time.time()
 
     try:
         while True:
@@ -284,6 +332,14 @@ def main(mqtt_host, chrome_port, save_images=False, fps=FPS):
                         f.write(cell)
                 # publish the image to MQTT.
                 mqtt.publish("sekai-kabuka/%s" % name, payload=cell)
+            
+            # reload the page if 1 hour have passed
+            if time.time() - last_reload_time > 3600:
+                logging.info("Reloading pages...")
+                send_command(ws, "Page.reload", session_id=dow30)
+                send_command(ws, "Page.reload", session_id=bitcoin)
+                last_reload_time = time.time()
+
             end_time = time.time()
             elapsed_time = end_time - start_time
             if elapsed_time < 1.0 / fps:
@@ -301,10 +357,14 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Kabuka Pakuri")
     parser.add_argument("--mqtt", type=str, default="localhost", help="MQTT broker hostname")
-    parser.add_argument("--chrome-port", type=int, default=9222, help="Chrome remote debugging port")
+    parser.add_argument("--chrome-port", type=int, default=CHROME_PORT, help="Chrome remote debugging port")
     parser.add_argument("--save-images", action="store_true", help="Save images to disk")
     parser.add_argument("--fps", type=float, default=FPS, help="Frames per second")
-    parser.add_argument("--loglevel", type=str, default="info", help="Logging level (default: info)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel.upper())
-    main(args.mqtt, args.chrome_port, args.save_images, args.fps)
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    with tempfile.TemporaryDirectory(prefix="chrome_debug_") as user_data_dir:
+        main(args.mqtt, args.chrome_port, user_data_dir, args.save_images, args.fps, args.debug)
+
