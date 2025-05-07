@@ -43,7 +43,7 @@ def start_chrome(port, user_data_dir, width=CHROME_WIDTH, height=CHROME_HEIGHT, 
     process = subprocess.Popen(
         cmdline
     )
-    #time.sleep(2)  # Chromeの起動を待つ
+    time.sleep(2)  # Chromeの起動を待つ
     return process
 
 # ヘルパー関数：WebSocketデバッグURLを取得
@@ -123,7 +123,7 @@ def load_pages(ws, port, url1, url2):
     send_command(ws, "Network.enable", session_id=session_id)
 
     # 広告ブロック
-    block_ad(ws, session_id)
+    #block_ad(ws, session_id)
 
     # 初期ターゲットでURLをナビゲート
     send_command(ws, "Page.navigate", {"url": url1}, session_id=session_id)
@@ -154,7 +154,7 @@ def load_pages(ws, port, url1, url2):
     send_command(ws, "Network.enable", session_id=new_session_id)
 
     # 広告ブロック
-    block_ad(ws, new_session_id)
+    #block_ad(ws, new_session_id)
 
     # 新しいウィンドウでURLをナビゲート
     send_command(ws, "Page.navigate", {"url": url2}, session_id=new_session_id)
@@ -287,7 +287,7 @@ def main(mqtt_host, chrome_port, chrome_user_dir, save_images=False, fps=FPS, de
         chrome.terminate()
         raise
 
-    ws = websocket.WebSocket()
+    ws = websocket.WebSocket(skip_utf8_validation=True)
     ws.connect(ws_url)
 
     logging.info("Connected to WebSocket")
@@ -337,10 +337,6 @@ def main(mqtt_host, chrome_port, chrome_user_dir, save_images=False, fps=FPS, de
                 send_command(ws, "Page.reload", session_id=dow30)
                 send_command(ws, "Page.reload", session_id=bitcoin)
                 last_reload_time = time.time()
-
-            # bring the pages to front to make them active
-            #send_command(ws, "Page.bringToFront", session_id=dow30)
-            #send_command(ws, "Page.bringToFront", session_id=bitcoin)
 
             end_time = time.time()
             elapsed_time = end_time - start_time
