@@ -111,7 +111,7 @@ def fetch_xmr_balance():
         return (balance, unlocked_balance)
     except Exception as e:
         logging.error(f"Error in sync_and_check_balance: {e}")
-        return None
+        return (None, None)
 
 def run_ffmpeg(rtmp_url):
     # Run ffmpeg to stream the video
