@@ -11,12 +11,12 @@ def get_data(alias):
     # select all div > code[class="mono"]
     elements = soup.select("div > code[class='mono']")
     # get the text of the first element
-    if len(elements) < 5:
+    if len(elements) < 4:
         logging.warning(f"No sufficient data found(expected 5): {elements}")
         return
     shares = elements[2].get_text()[2:-2].replace("|", "").replace(".","0")
     uncles = elements[3].get_text()[2:-2].replace("|", "").replace(".","0")
-    payouts = elements[4].get_text()[2:-2].replace("|", "").replace(".","0")
+    payouts = elements[4].get_text()[2:-2].replace("|", "").replace(".","0") if len(elements) > 4 else "0" * 120
     if len(shares) != 120 or len(uncles) != 120 or len(payouts) != 120:
         logging.warning(f"Data length mismatch(expected 120): {shares}, {uncles}, {payouts}")
         return
