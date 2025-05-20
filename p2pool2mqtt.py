@@ -5,9 +5,10 @@ import paho.mqtt.client as mqtt_client
 import requests
 import bs4
 
-def get_data(alias):
+def get_data(alias, mini=False):
     # fetch https://p2pool.observer/miner/{alias} and parse the html
-    soup = bs4.BeautifulSoup(requests.get(f"https://p2pool.observer/miner/{alias}").text, "html.parser")
+    url = f"https://p2pool.observer/miner/{alias}" if not mini else f"https://mini.p2pool.observer/miner/{alias}"
+    soup = bs4.BeautifulSoup(requests.get(url).text, "html.parser")
     # select all div > code[class="mono"]
     elements = soup.select("div > code[class='mono']")
     # get the text of the first element
@@ -27,9 +28,9 @@ def get_data(alias):
         "payouts": payouts
     }
 
-def get_data_and_publish(client, aliases):
+def get_data_and_publish(client, aliases, mini=False):
     for alias in aliases:
-        data = get_data(alias)
+        data = get_data(alias, mini)
         if data:
             # Publish the data to MQTT
             client.publish(f"p2pool/{alias}", json.dumps(data), qos=1)
@@ -39,7 +40,7 @@ def get_data_and_publish(client, aliases):
 
 def on_connect(client, userdata, flags, rc, properties=None):
     logging.info(f"Connected to MQTT broker with result code {rc}")
-    get_data_and_publish(client, userdata["aliases"])
+    get_data_and_publish(client, userdata["aliases"], userdata["mini"])
     # Subscribe to the topic with userdata = aliases
     client.subscribe(f"p2pool", qos=1)
     logging.info(f"Subscribed to p2pool")
@@ -52,13 +53,13 @@ def on_message(client, userdata, msg):
     #else
     get_data_and_publish(client, userdata["aliases"])
 
-def main(mqtt_host, alias):
+def main(mqtt_host, alias, mini=False):
     # MQTTクライアント設定
     mqtt = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
     # MQTTのコールバック関数
 
     # Set the userdata to the aliases
-    mqtt.user_data_set({"aliases": [alias]})
+    mqtt.user_data_set({"aliases": [alias], "mini": mini})
     # Set the callback function
     mqtt.on_connect = on_connect
     mqtt.on_message = on_message
@@ -68,7 +69,7 @@ def main(mqtt_host, alias):
     mqtt.loop_start()
     try:
         while True:
-            get_data_and_publish(mqtt, [alias])
+            get_data_and_publish(mqtt, [alias], mini)
             time.sleep(300)
     except KeyboardInterrupt:
         logging.info("Exiting...")
@@ -83,9 +84,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="P2pool.observer to MQTT bridge")
     parser.add_argument("--mqtt", type=str, default="localhost", help="MQTT broker address")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--mini", action="store_true", help="Refer mini chain")
     parser.add_argument("alias", type=str, help="P2pool alias")
     args = parser.parse_args()
     # Set logging level
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     #print(get_data())
-    main(args.mqtt, args.alias)
+    main(args.mqtt, args.alias, args.mini)
