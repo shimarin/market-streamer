@@ -1,15 +1,12 @@
 [Unit]
 Description=Market Streamer Service
-After=mosquitto.service network-online.target
-Requires=mosquitto.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/market-streamer
+ExecStart=%h/.local/bin/market-streamer
 Restart=always
-User=nobody
-Group=nogroup
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

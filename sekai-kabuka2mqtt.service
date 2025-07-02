@@ -1,15 +1,12 @@
 [Unit]
 Description=Sekai-kabuka2mqtt Service
-After=mosquitto.service network-online.target
-Requires=mosquitto.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/sekai-kabuka2mqtt
+ExecStart=%h/.local/bin/sekai-kabuka2mqtt
 Restart=always
-User=nobody
-Group=nogroup
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

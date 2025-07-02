@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 import subprocess,logging,time,io,json
 
-import cairo,cairosvg
+import cairo,cairosvg # media-gfx/cairosvg
 from gi import require_version
 require_version("Pango", "1.0")
 require_version("PangoCairo", "1.0")
 from gi.repository import Pango, PangoCairo
 
-import paho.mqtt.client as mqtt_client
+import paho.mqtt.client as mqtt_client # dev-python/paho-mqtt
 import requests
 
 charts = {}

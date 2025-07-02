@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import json,base64,subprocess,websocket,time,logging,tempfile
+import json,base64,subprocess,time,logging,tempfile
 import urllib.request
-import cv2
+import websocket # dev-python/websocket-client
+import cv2 # media-libs/opencv
 import numpy as np
 import paho.mqtt.client as mqtt_client
 
@@ -24,15 +25,16 @@ def start_chrome(port, user_data_dir, width=CHROME_WIDTH, height=CHROME_HEIGHT, 
         "google-chrome-stable",
         "--no-first-run",
         "--no-default-browser-check",
+        "--incognito",
         f"--user-data-dir={user_data_dir}",
         f"--window-size={width},{height}",
         f"--remote-debugging-port={port}",
         f"--remote-allow-origins=*",
-        "--no-sandbox",
+        #"--no-sandbox",
         "--process-per-site",
         "--disable-background-timer-throttling",
-        "--no-zygote",
-        "--disable-setuid-sandbox",
+        #"--no-zygote",
+        #"--disable-setuid-sandbox",
         "--disable-features=TranslateUI,Translate",
         "--hide-scrollbars",
         "--enable-unsafe-swiftshader"

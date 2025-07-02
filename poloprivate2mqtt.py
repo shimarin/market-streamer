@@ -90,19 +90,19 @@ if __name__ == "__main__":
     # read api_key and secret from ~/.poloniex_api_secret (json)
     api_key_file_error = False
     try:
-        with open(os.path.expanduser("~/.poloniex-api-key"), "r") as f:
+        with open(os.path.expanduser("~/.config/poloniex-api-key"), "r") as f:
             api_key_json = json.load(f)
             api_key = api_key_json.get("api_key")
             api_secret = api_key_json.get("api_secret")
             if api_key is None or api_secret is None:
-                logging.error("api_key or api_secret not found in ~/.poloniex-api-key")
+                logging.error("api_key or api_secret not found in ~/.config/poloniex-api-key")
                 api_key_file_error = True
     except Exception as e:
         logging.error(f"Failed to read api_secret: {e}")
         api_key_file_error = True
     
     if api_key_file_error:
-        logging.error("Please create json file ~/.poloniex-api-key with api_key and api_secret")
+        logging.error("Please create json file ~/.config/poloniex-api-key with api_key and api_secret")
         exit(1)
 
     # Create WebSocket client
