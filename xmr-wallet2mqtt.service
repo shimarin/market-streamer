@@ -1,0 +1,12 @@
+[Unit]
+Description=XMR wallet2MQTT Service
+After=mosquitto.service network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/xmr-wallet2mqtt ALIAS
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

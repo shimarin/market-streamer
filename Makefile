@@ -11,7 +11,7 @@ install:
 	mkdir -p $(BIN_DIR)
 	cp -v market-streamer.py $(BIN_DIR)/market-streamer && chmod +x $(BIN_DIR)/market-streamer
 	cp -v market-streamer.service $(SYSTEMD_USER_DIR)/market-streamer.service
-	cp -v p2pool2mqtt.py $(BIN_DIR)/p2pool2mqtt && chmod +x $(BIN_DIR)/p2pool2mqtt
+	cp -v xmr-wallet2mqtt.py $(BIN_DIR)/xmr-wallet2mqtt && chmod +x $(BIN_DIR)/xmr-wallet2mqtt
 	cp -v polo2mqtt.py $(BIN_DIR)/polo2mqtt && chmod +x $(BIN_DIR)/polo2mqtt
 	cp -v polo2mqtt.service $(SYSTEMD_USER_DIR)/polo2mqtt.service
 	cp -v poloprivate2mqtt.py $(BIN_DIR)/poloprivate2mqtt && chmod +x $(BIN_DIR)/poloprivate2mqtt
