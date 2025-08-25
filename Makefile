@@ -9,7 +9,6 @@ all:
 install:
 	@echo "Installing scripts..."
 	mkdir -p $(BIN_DIR)
-	cp -v market-streamer.service $(SYSTEMD_USER_DIR)/market-streamer.service
 	cp -v xmr-wallet2mqtt.py $(BIN_DIR)/xmr-wallet2mqtt && chmod +x $(BIN_DIR)/xmr-wallet2mqtt
 	cp -v polo2mqtt.py $(BIN_DIR)/polo2mqtt && chmod +x $(BIN_DIR)/polo2mqtt
 	cp -v polo2mqtt.service $(SYSTEMD_USER_DIR)/polo2mqtt.service
