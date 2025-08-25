@@ -5,7 +5,7 @@ import urllib.request
 import websocket # dev-python/websocket-client
 import cv2 # media-libs/opencv
 import numpy as np
-import paho.mqtt.client as mqtt_client
+import paho.mqtt.client as mqtt_client # dev-python/paho-mqtt
 
 # コマンドIDを管理するためのカウンタ
 command_id = 0

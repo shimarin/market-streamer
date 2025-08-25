@@ -7,9 +7,8 @@ all:
 	@echo "Use 'make install' to install the script."
 
 install:
-	@echo "Installing script..."
+	@echo "Installing scripts..."
 	mkdir -p $(BIN_DIR)
-	cp -v market-streamer.py $(BIN_DIR)/market-streamer && chmod +x $(BIN_DIR)/market-streamer
 	cp -v market-streamer.service $(SYSTEMD_USER_DIR)/market-streamer.service
 	cp -v xmr-wallet2mqtt.py $(BIN_DIR)/xmr-wallet2mqtt && chmod +x $(BIN_DIR)/xmr-wallet2mqtt
 	cp -v polo2mqtt.py $(BIN_DIR)/polo2mqtt && chmod +x $(BIN_DIR)/polo2mqtt
